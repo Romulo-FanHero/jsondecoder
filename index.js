@@ -14,13 +14,12 @@ catch (err) {
     console.error(err);
 }
 
-// data = data.substr(0, 10000);
-
-console.log(data.length);
-
+var ids = [];
 var matches = data.match(/        "_id" : "(.*)",/g);
 matches.forEach(function(match) {
     var id = match.split(`        "_id" : "`)[1].split(`",`)[0];
     console.log(id);
+    ids.push(id);
 });
-console.log(matches.length);
+console.log('TOTAL IDS FOUND: ', ids.length);
+console.log('FILE LENGTH: ', data.length);
