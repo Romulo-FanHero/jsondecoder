@@ -19,7 +19,7 @@ catch (e) {
         );
     }
     catch (err) {
-        console.log('error while trying to fix dump file: ', err);
+        console.error('error while trying to fix dump file: ', err);
         process.exit();
     }
 }
@@ -29,7 +29,7 @@ try {
     var users = JSON.parse(fs.readFileSync('temp/fixed.json', 'utf8'));
 }
 catch (err) {
-    console.log('error while parsing fixed file: ', err);
+    console.error('error while parsing fixed file: ', err);
     process.exit();
 }
 
