@@ -11,6 +11,7 @@
     "JSONStream": "^1.1.4",
     "ager": "^2.0.4",
     "chai": "^3.5.0",
+    "email-validator": "^1.0.5",
     "event-stream": "^3.3.4",
     "horoscope": "^2.0.1",
     "json-depth-stream": "^2.2.1",

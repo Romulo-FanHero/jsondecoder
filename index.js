@@ -2,6 +2,7 @@ var _ = require('lodash');
 var fs = require('fs');
 var horoscope = require('horoscope');
 var toAge = require ('to-age');
+var ev = require("email-validator");
 
 const dumpFilePath = 'temp/temp.json';
 const fixedFilePath = 'temp/fixed.json';
@@ -80,7 +81,8 @@ try {
         fan.avatar_available = _.has(user, 'hasInfo') && user.hasInfo && _.has(user, 'picture'); // && isValidUrl(user.picture)
         fan.avatar_url = _.has(user, 'picture') ? user.picture : defaultStrVal; // "https://api.fanhero.net/user/${fan.fanheroid}/avatar/thumb-100"
         fan.email = _.has(user, 'email') ? user.email : defaultStrVal;
-        fan.email_provider = null;  // FIXME
+        fan.email_valid = ev.validate(fan.email);
+        fan.email_provider = fan.email_valid ? fan.email.split('@').pop().split('.')[0] : defaultStrVal;
         fan.gender = _.has(user, 'gender') ? user.gender : defaultStrVal;
 
         // birthday-related stuff
