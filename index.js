@@ -3,24 +3,36 @@ var fs = require('fs');
 var horoscope = require('horoscope');
 var toAge = require ('to-age');
 var ev = require("email-validator");
+var json2csv = require('json2csv');
 
-const dumpFilePath = 'temp/temp.json';
-const fixedFilePath = 'temp/fixed.json';
-const outputFilePath = 'temp/treated.json';
+const inputFilePath = 'temp/input.json';
+const intermediateFilePath = 'temp/intermediate.json';
+const jsonOutputFilePath = 'temp/output.json';
+const csvOutputFilePath = 'temp/output.csv';
 
 const defaultIntVal = null; // -1
 const defaultFloatVal = null; // NaN
 const defaultStrVal = null; // 'n/a'
 
+function countEvent(user, eventName) {
+    if (!_.has(user, 'pe')) {
+        return 0;
+    }
+    //console.log(user.pe);
+    return _.reduce(user.pe, function(n, val) {
+        return n + (val === eventName);
+    }, 0);
+}
+
 try {
     // check if fixed file already exist, thowing an exception if it doesn't
-    fs.accessSync(fixedFilePath, fs.F_OK);
+    fs.accessSync(intermediateFilePath, fs.F_OK);
 }
 catch (e) {
     // try to create fixed file
     try {
-        fs.writeFileSync(fixedFilePath,
-            fs.readFileSync(dumpFilePath, 'utf8')
+        fs.writeFileSync(intermediateFilePath,
+            fs.readFileSync(inputFilePath, 'utf8')
             .split(`/* 1 */`).join(``)
             .split(`ObjectId("`).join(`"`)
             .split(`")`).join(`"`)
@@ -34,7 +46,7 @@ catch (e) {
 
 try {
     // try to parse fixed file
-    var users = JSON.parse(fs.readFileSync('temp/fixed.json', 'utf8'));
+    var users = JSON.parse(fs.readFileSync(intermediateFilePath, 'utf8'));
 }
 catch (err) {
     console.error('error while parsing fixed file: ', err);
@@ -77,7 +89,7 @@ try {
         fan.device_resolution = _.has(user, 'r') ? user.r : defaultStrVal;
         fan.device_density = _.has(user, 'dnst') ? user.dnst : defaultStrVal;
         fan.language = _.has(user, 'la') ? user.dnst : defaultStrVal;
-        fan.avatar_available = _.has(user, 'hasInfo') && user.hasInfo && _.has(user, 'picture'); // && isValidUrl(user.picture)
+        fan.avatar_available = _.has(user, 'hasInfo') && user.hasInfo && _.has(user, 'picture'); // && isValidUrl(user.picture) FIXME hasInfo might mean more than this
         fan.avatar_url = _.has(user, 'picture') ? user.picture : defaultStrVal; // "https://api.fanhero.net/user/${fan.fanheroid}/avatar/thumb-100"
         fan.email = _.has(user, 'email') ? user.email : defaultStrVal;
         fan.email_valid = ev.validate(fan.email);
@@ -117,41 +129,48 @@ try {
         // Event counters
         fan.msg_count = _.has(user, 'msgs') ? user.msgs.length : 0;
         fan.event_count = _.has(user, 'pe') ? user.pe.length : 0;
-        fan.alert_count = null; // FIXME
-        fan.authenticate_count = null; // FIXME
-        fan.authenticate_error_count = null; // FIXME
-        fan.edit_profile_count = null; // FIXME
-        fan.edit_profile_error_count = null; // FIXME
-        fan.forgot_password_count = null; // FIXME
-        fan.forgot_password_error_count = null; // FIXME
-        fan.like_count = null; // FIXME
-        fan.livestream_closed_count = null; // FIXME
-        fan.livestream_opened_count = null; // FIXME
-        fan.push_opened_count = null; // FIXME
-        fan.play_video_count = null; // FIXME
-        fan.post_comment_count = null; // FIXME
-        fan.post_details_count = null; // FIXME
-        fan.post_like_count = null; // FIXME
-        fan.register_count = null; // FIXME
-        fan.register_error_count = null; // FIXME
-        fan.sign_out_count = null; // FIXME
-        fan.stream_fetch_error_count = null; // FIXME
-        fan.unlike_count = null; // FIXME
-        fan.zoom_close_count = null; // FIXME
+        fan.alert_count = countEvent(user, 'Alert');
+        fan.authenticate_count = countEvent(user, 'Authenticate');
+        fan.authenticate_error_count = countEvent(user, 'Authenticate Error');
+        fan.edit_profile_count = countEvent(user, 'Edit Profile');
+        fan.edit_profile_error_count = countEvent(user, 'Edit Profile Error');
+        fan.forgot_password_count = countEvent(user, 'Forgot Password');
+        fan.forgot_password_error_count = countEvent(user, 'Forgot Password Error');
+        fan.like_count = countEvent(user, 'Like');
+        fan.livestream_closed_count = countEvent(user, 'Livestream Closed');
+        fan.livestream_opened_count = countEvent(user, 'Livestream Opened');
+        fan.push_opened_count = countEvent(user, '[CLY]_push_open');
+        fan.play_video_count = countEvent(user, 'Play Video');
+        fan.post_comment_count = countEvent(user, 'Post Comment');
+        fan.post_details_count = countEvent(user, 'Post Details');
+        fan.post_like_count = countEvent(user, 'Post Like');
+        fan.register_count = countEvent(user, 'Register');
+        fan.register_error_count = countEvent(user, 'Register Error');
+        fan.sign_out_count = countEvent(user, 'Sign Out');
+        fan.stream_fetch_error_count = countEvent(user, 'Stream Fetch Error');
+        fan.unlike_count = countEvent(user, 'Unlike');
+        fan.zoom_close_count = countEvent(user, 'Zoom Close');
 
         // booleans from event counters
-        fan.has_authenticated = null; // FIXME
-        fan.has_edited_profile = null; // FIXME
-        fan.has_forgot_password = null; // FIXME
-        fan.has_liked = null; // FIXME
-        fan.has_livestreamed = null; // FIXME
-        fan.has_played_video = null; // FIXME
-        fan.has_commented = null; // FIXME
-        fan.has_registered = null; // FIXME
-        fan.has_signed_out = null; // FIXME
+        fan.has_authenticated = fan.authenticate_count > 0;
+        fan.has_commented = fan.post_comment_count > 0;
+        fan.has_edited_profile = fan.edit_profile_count > 0;
+        fan.has_forgot_password = fan.forgot_password_count > 0;
+        fan.has_liked = fan.like_count > 0;
+        fan.has_livestreamed = (fan.livestream_opened_count > 0) || (fan.livestream_closed_count > 0);
+        fan.has_played_video = fan.play_video_count > 0;
+        fan.has_pushed = fan.push_opened_count > 0;
+        fan.has_registered = fan.register_count > 0;
+        fan.has_signed_out = fan.sign_out_count > 0;
 
+        // ### DANGER ###
+        fan.name = _.has(user, 'name') ? user.name : defaultStrVal;
+        fan.username = _.has(user, 'username') ? user.username : defaultStrVal;
+        //fan.organization = _.has(user, 'organization') ? user.organization : defaultStrVal;
+        //fan.phone = _.has(user, 'phone') ? user.phone : defaultStrVal;
+
+        // queue completed fan
         fans.push(fan);
-
     });
 }
 catch (err) {
@@ -160,8 +179,18 @@ catch (err) {
 }
 
 try {
-    fs.writeFileSync(outputFilePath, JSON.stringify(fans, null, 4));
+    fs.writeFileSync(jsonOutputFilePath, JSON.stringify(fans, null, 4));
 }
 catch (err) {
-    console.error('error while writing output file: ', err);
+    console.error('error while writing json output file: ', err);
+    process.exit();
+}
+
+try {
+    fs.writeFileSync(csvOutputFilePath, json2csv({ data: fans}));
+}
+catch (err) {
+    // Errors are thrown for bad options, or if the data is empty and no fields are provided.
+    // Be sure to provide fields if it is possible that your data array will be empty.
+    console.error('error while writing csv output file', err);
 }
