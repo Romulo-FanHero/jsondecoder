@@ -193,11 +193,13 @@ try {
     console.log('Total users with register event logged: ', _.sum(_.map(fans, 'has_registered')));
     */
     var fhidCnt = _.uniq(_.map(fans, 'fanheroid')).length - 1;
+    var sc = _.sum(_.map(fans, 'session_count'));
     console.log('Total count of unique fanhero IDs: ', fhidCnt);
     console.log('Total visitor records: ', fans.length);
     console.log(`Registration rate: ${ Math.round(fhidCnt * 10000.0 / fans.length) / 100.0 } %`);
-    console.log('Total session count: ', _.sum(_.map(fans, 'session_count')));
+    console.log('Total session count: ', sc);
     console.log('Total sessions from registered users: ', scFromReg);
+    console.log('% of sessions from registered users: ', Math.round(scFromReg * 10000.0 / sc) / 100.0);
     console.log();
 }
 catch (err) {
