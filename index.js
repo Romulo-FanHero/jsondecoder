@@ -164,10 +164,8 @@ try {
         fan.has_signed_out = fan.sign_out_count > 0;
 
         // ### DANGER ###
-        fan.name = _.has(user, 'name') ? user.name : defaultStrVal;
-        fan.username = _.has(user, 'username') ? user.username : defaultStrVal;
-        //fan.organization = _.has(user, 'organization') ? user.organization : defaultStrVal;
-        //fan.phone = _.has(user, 'phone') ? user.phone : defaultStrVal;
+        //fan.name = _.has(user, 'name') ? user.name : defaultStrVal;
+        //fan.username = _.has(user, 'username') ? user.username : defaultStrVal;
 
         // queue completed fan
         fans.push(fan);
