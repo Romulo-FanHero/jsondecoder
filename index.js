@@ -47,7 +47,6 @@ try {
     users.forEach(function(user) {
 
         var fan = {};
-
         fan.session_count = _.has(user, 'sc') ? user.sc : 0;
         fan.first_session_timestamp = _.has(user, 'fs') ? user.fs : defaultIntVal;
         fan.last_session_timestamp = _.has(user, 'ls') ? user.ls : defaultIntVal;
@@ -82,7 +81,7 @@ try {
         fan.avatar_url = _.has(user, 'picture') ? user.picture : defaultStrVal; // "https://api.fanhero.net/user/${fan.fanheroid}/avatar/thumb-100"
         fan.email = _.has(user, 'email') ? user.email : defaultStrVal;
         fan.email_valid = ev.validate(fan.email);
-        fan.email_provider = fan.email_valid ? fan.email.split('@').pop().split('.')[0] : defaultStrVal;
+        fan.email_provider = fan.email_valid ? fan.email.split('@').pop().split('.').shift() : defaultStrVal;
         fan.gender = _.has(user, 'gender') ? user.gender : defaultStrVal;
 
         // birthday-related stuff
