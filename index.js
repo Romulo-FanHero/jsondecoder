@@ -2,7 +2,7 @@ var _ = require('lodash');
 var fs = require('fs');
 var horoscope = require('horoscope');
 var toAge = require ('to-age');
-var ev = require("email-validator");
+var ev = require('email-validator');
 var json2csv = require('json2csv');
 
 const inputFilePath = 'temp/input.json';
@@ -54,6 +54,10 @@ catch (err) {
 }
 
 try {
+
+    var both = [];
+    var scFromReg = 0;
+
     // try to decode user array into fan array
     var fans = [];
     users.forEach(function(user) {
@@ -107,7 +111,7 @@ try {
         if (_.has(user, 'custom.birthday')) {
             try {
                 var date = new Date(user.custom.birthday);
-                if ( Object.prototype.toString.call(date) === "[object Date]" ) {
+                if (Object.prototype.toString.call(date) === '[object Date]') {
                     if (_.isFinite(date.getTime())) {  // d.valueOf() could also work
                         fan.birthdate = user.custom.birthday;
                         fan.birth_timestamp = Math.round(date.getTime() / 1000);
@@ -125,6 +129,8 @@ try {
             }
         }
         fan.astrological_zodiac = horoscope.getZodiac(fan.birth_year, true);
+
+        /*
 
         // Event counters
         fan.msg_count = _.has(user, 'msgs') ? user.msgs.length : 0;
@@ -163,13 +169,36 @@ try {
         fan.has_registered = fan.register_count > 0;
         fan.has_signed_out = fan.sign_out_count > 0;
 
+        */
+
         // ### DANGER ###
         fan.name = _.has(user, 'name') ? user.name : defaultStrVal;
         fan.username = _.has(user, 'username') ? user.username : defaultStrVal;
 
         // queue completed fan
         fans.push(fan);
+
+        if (_.has(user, 'custom.id') && !_.isEmpty(user.custom.id)) {
+            scFromReg += fan.session_count;
+            /*
+            if (fan.has_registered) {
+                both.push(user.custom.id);
+            }
+            */
+        }
+
     });
+    /*
+    console.log('Total of user records with unique fanhero IDs and register event logged', _.uniq(both).length);
+    console.log('Total users with register event logged: ', _.sum(_.map(fans, 'has_registered')));
+    */
+    var fhidCnt = _.uniq(_.map(fans, 'fanheroid')).length - 1;
+    console.log('Total count of unique fanhero IDs: ', fhidCnt);
+    console.log('Total visitor records: ', fans.length);
+    console.log(`Registration rate: ${ Math.round(fhidCnt * 10000.0 / fans.length) / 100.0 } %`);
+    console.log('Total session count: ', _.sum(_.map(fans, 'session_count')));
+    console.log('Total sessions from registered users: ', scFromReg);
+    console.log();
 }
 catch (err) {
     console.error('error while decoding parsed file: ', err);
