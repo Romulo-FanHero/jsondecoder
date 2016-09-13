@@ -1,5 +1,7 @@
 var _ = require('lodash');
 var fs = require('fs');
+var horoscope = require('horoscope');
+var toAge = require ('to-age');
 
 const dumpFilePath = 'temp/temp.json';
 const fixedFilePath = 'temp/fixed.json';
@@ -39,6 +41,7 @@ catch (err) {
 }
 
 try {
+    // try to decode user array into fan array
     var fans = [];
     users.forEach(function(user) {
 
@@ -67,13 +70,6 @@ try {
         fan.total_session_duration = _.has(user, 'tsd') ? Math.round(user.tsd) : defaultIntVal;
         fan.average_session_duration = _.has(user, 'tsd') && _.has(user, 'sc') && (user.sc > 0) ? Math.round(user.tsd / user.sc) : defaultIntVal;
         fan.location = _.has(user, 'custom.location') ? user.custom.location : defaultStrVal;
-        fan.birthdate = _.has(user, 'custom.birthday') ? user.custom.birthday : defaultStrVal;
-        fan.birth_year = _.has(user, 'byear') ? user.byear : defaultStrVal; // or someGetYearMethod(fan['custom']['birthday'])
-        fan.birth_month = null; // FIXME
-        fan.birth_day = null;  // FIXME
-        fan.birth_timestamp = null; // FIXME
-        fan.seconds_since_birth = null; // FIXME
-        fan.zodiac = null; // FIXME
         fan.fanheroid = _.has(user, 'custom.id') ? user.custom.id : defaultStrVal;
         fan._id = _.has(user, '_id') ? user._id : defaultStrVal;
         fan.uid = _.has(user, 'uid') ? user.uid : defaultStrVal;
@@ -87,8 +83,47 @@ try {
         fan.email_provider = null;  // FIXME
         fan.gender = _.has(user, 'gender') ? user.gender : defaultStrVal;
 
+        // birthday-related stuff
+        fan.birthdate = defaultStrVal;
+        fan.birth_timestamp = defaultIntVal;
+        fan.seconds_since_birth = defaultIntVal;
+        fan.birth_day = defaultIntVal;
+        fan.birth_month = defaultIntVal;
+        fan.birth_year = _.has(user, 'byear') ? user.byear : defaultIntVal;
+        fan.age = _.has(user, 'byear') ? (new Date().getFullYear() - user.byear) : defaultIntVal;
+        fan.astrological_sign = defaultStrVal;
+        fan.astrological_zodiac = defaultStrVal;
+        if (_.has(user, 'custom.birthday')) {
+            try {
+                var date = new Date(user.custom.birthday);
+                if ( Object.prototype.toString.call(date) === "[object Date]" ) {
+                    if (_.isFinite(date.getTime())) {  // d.valueOf() could also work
+                        fan.birthdate = user.custom.birthday;
+                        fan.birth_timestamp = Math.round(date.getTime() / 1000);
+                        fan.seconds_since_birth = Math.round(Date.now() / 1000 - fan.birth_timestamp);
+                        fan.birth_year = date.getFullYear();
+                        fan.birth_month = date.getMonth() + 1;
+                        fan.birth_day = date.getDate();
+                        fan.age = toAge(date);
+                        fan.astrological_sign = horoscope.getSign({month: fan.birth_month, day: fan.birth_day });
+                    }
+                }
+            }
+            catch (e) {
+                console.error(e);
+            }
+        }
+        if (_.isNumber(fan.birth_year) && _.inRange(fan.birth_year, 1900, 2100)) {
+            try {
+                fan.astrological_zodiac = horoscope.getZodiac(fan.birth_year);
+            }
+            catch (e) {
+                console.error(e);
+            }
+        }
+
         // TODO
-        fan.age = null; // FIXME
+
         fan.msg_count = _.has(user, 'msgs') ? user.msgs.length : 0;
         fan.event_count = _.has(user, 'pe') ? user.pe.length : 0;
         fan.alert_count = null; // FIXME
