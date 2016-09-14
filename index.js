@@ -56,6 +56,10 @@ catch (err) {
 try {
 
     var both = [];
+    var sess7 = [];
+    var plat = [];
+    var cc = [];
+    var cty = [];
     var scFromReg = 0;
 
     // try to decode user array into fan array
@@ -68,6 +72,8 @@ try {
         fan.last_session_timestamp = _.has(user, 'ls') ? user.ls : defaultIntVal;
         fan.seconds_since_first_session = _.has(user, 'fs') ? Math.round(Date.now() / 1000 - user.fs) : defaultIntVal;
         fan.seconds_since_last_session = _.has(user, 'ls') ? Math.round(Date.now() / 1000 - user.ls) : defaultIntVal;
+        fan.days_from_first_to_last_session = _.has(user, 'fs') && _.has(user, 'ls') ? Math.floor((fan.last_session_timestamp - fan.first_session_timestamp)/86400) : defaultIntVal;
+        fan.sessions_per_week = _.has(user, 'sc') && _.has(user, 'fs') && _.has(user, 'ls') && (fan.days_from_first_to_last_session > 5) ? fan.session_count * 7.0 / fan.days_from_first_to_last_session : defaultFloatVal;
         fan.device_id = _.has(user, 'did') ? user.did : defaultStrVal;
         fan.device_name = _.has(user, 'd') ? user.d : defaultStrVal;
         fan.country_code = _.has(user, 'cc') ? user.cc : defaultStrVal;
@@ -180,11 +186,23 @@ try {
 
         if (_.has(user, 'custom.id') && !_.isEmpty(user.custom.id)) {
             scFromReg += fan.session_count;
+            if (_.has(user, 'p')) {
+                plat.push(user.p);
+            }
+            if (_.has(user, 'cc') && !_.isEmpty(user.cc) && (user.cc !== 'Unknown')) {
+                cc.push(user.cc);
+            }
+            if (_.has(user, 'cty') && !_.isEmpty(user.cty) && (user.cty !== 'Unknown')) {
+                cty.push(user.cty);
+            }
             /*
             if (fan.has_registered) {
                 both.push(user.custom.id);
             }
             */
+        }
+        if (fan.sessions_per_week !== defaultFloatVal) {
+            sess7.push(fan.sessions_per_week);
         }
 
     });
@@ -194,13 +212,30 @@ try {
     */
     var fhidCnt = _.uniq(_.map(fans, 'fanheroid')).length - 1;
     var sc = _.sum(_.map(fans, 'session_count'));
+    var visByPlat = _.omit(_.countBy(_.map(fans, 'platform')), defaultStrVal);
+    var regByPlat = _.countBy(plat);
+    var visByCc =  _.omit(_.countBy(_.map(fans, 'country_code')), [defaultStrVal, 'Unknown']);
+    var regByCc =  _.countBy(cc);
+    var visByCty =  _.omit(_.countBy(_.map(fans, 'cty')), [defaultStrVal, 'Unknown']);
+    var regByCty =  _.countBy(cty);
     console.log('Total count of unique fanhero IDs: ', fhidCnt);
     console.log('Total visitor records: ', fans.length);
     console.log(`Registration rate: ${ Math.round(fhidCnt * 10000.0 / fans.length) / 100.0 } %`);
     console.log('Total session count: ', sc);
     console.log('Total sessions from registered users: ', scFromReg);
     console.log('% of sessions from registered users: ', Math.round(scFromReg * 10000.0 / sc) / 100.0);
-    console.log();
+    console.log('Average sessions per registered user for more than 5 days: ', scFromReg/fhidCnt);
+    console.log('Average sessions per week: ', _.sum(sess7)/sess7.length);
+    console.log('all users by platform', visByPlat);
+    console.log('registered users by platform', regByPlat);
+    console.log('Android registration rate', regByPlat.Android * 100.0 / visByPlat.Android);
+    console.log('iOS registration rate', regByPlat.iOS * 100.0 / visByPlat.iOS);
+    //console.log('all users by country', visByCc);
+    //console.log('registered users by country', regByCc);
+    console.log('visitor count from brazil', visByCc.BR, ` (${visByCc.BR * 100.0 / fans.length} %)`);
+    console.log('registered fans from brazil', regByCc.BR, ` (${regByCc.BR * 100.0 / fhidCnt} %)`);
+    console.log('visitors by city', visByCty);
+    console.log('registered by city', regByCty);
 }
 catch (err) {
     console.error('error while decoding parsed file: ', err);
