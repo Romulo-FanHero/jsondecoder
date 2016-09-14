@@ -4,6 +4,7 @@ var horoscope = require('horoscope');
 var toAge = require ('to-age');
 var ev = require('email-validator');
 var json2csv = require('json2csv');
+var stats = require('stats-lite');
 
 const inputFilePath = 'temp/input.json';
 const intermediateFilePath = 'temp/intermediate.json';
@@ -22,6 +23,10 @@ function countEvent(user, eventName) {
     return _.reduce(user.pe, function(n, val) {
         return n + (val === eventName);
     }, 0);
+}
+
+function orderedJsonStringify(o) {
+    return JSON.stringify(Object.keys(o).sort().reduce((r, k) => (r[k] = o[k], r), {})/*, null, 2*/);
 }
 
 try {
@@ -60,6 +65,8 @@ try {
     var plat = [];
     var cc = [];
     var cty = [];
+    var asd = [];
+    var regPushCnt = 0;
     var scFromReg = 0;
 
     // try to decode user array into fan array
@@ -72,7 +79,7 @@ try {
         fan.last_session_timestamp = _.has(user, 'ls') ? user.ls : defaultIntVal;
         fan.seconds_since_first_session = _.has(user, 'fs') ? Math.round(Date.now() / 1000 - user.fs) : defaultIntVal;
         fan.seconds_since_last_session = _.has(user, 'ls') ? Math.round(Date.now() / 1000 - user.ls) : defaultIntVal;
-        fan.days_from_first_to_last_session = _.has(user, 'fs') && _.has(user, 'ls') ? Math.floor((fan.last_session_timestamp - fan.first_session_timestamp)/86400) : defaultIntVal;
+        fan.days_from_first_to_last_session = _.has(user, 'fs') && _.has(user, 'ls') ? Math.floor((fan.last_session_timestamp - fan.first_session_timestamp) / 86400.0) : defaultIntVal;
         fan.sessions_per_week = _.has(user, 'sc') && _.has(user, 'fs') && _.has(user, 'ls') && (fan.days_from_first_to_last_session > 5) ? fan.session_count * 7.0 / fan.days_from_first_to_last_session : defaultFloatVal;
         fan.device_id = _.has(user, 'did') ? user.did : defaultStrVal;
         fan.device_name = _.has(user, 'd') ? user.d : defaultStrVal;
@@ -96,14 +103,20 @@ try {
         fan._id = _.has(user, '_id') ? user._id : defaultStrVal;
         fan.uid = _.has(user, 'uid') ? user.uid : defaultStrVal;
         fan.push_enabled = (_.has(user, 'tkip') && user.tkip) || (_.has(user, 'tkap') && user.tkap);
-        fan.device_resolution = _.has(user, 'r') ? user.r : defaultStrVal;
+        fan.screen_resolution = _.has(user, 'r') ? user.r : defaultStrVal;
+        var res = [];
+        if (_.has(user, 'r')) {
+            res = user.r.match(/\d+/g);
+        }
+        fan.screen_width = _.has(user, 'r') && (res.length === 2) ? res[0] : defaultStrVal;
+        fan.screen_height = _.has(user, 'r') && (res.length === 2) ? res[1] : defaultStrVal;
         fan.device_density = _.has(user, 'dnst') ? user.dnst : defaultStrVal;
-        fan.language = _.has(user, 'la') ? user.dnst : defaultStrVal;
-        fan.avatar_available = _.has(user, 'hasInfo') && user.hasInfo && _.has(user, 'picture'); // && isValidUrl(user.picture) FIXME hasInfo might mean more than this
+        fan.language = _.has(user, 'la') ? user.la : defaultStrVal;
+        fan.has_info = _.has(user, 'hasInfo') && user.hasInfo && _.has(user, 'picture') && _.has(user, 'custom.id')  && _.has(user, 'email'); // && isValidUrl(user.picture) FIXME hasInfo might mean more than this
         fan.avatar_url = _.has(user, 'picture') ? user.picture : defaultStrVal; // "https://api.fanhero.net/user/${fan.fanheroid}/avatar/thumb-100"
         fan.email = _.has(user, 'email') ? user.email : defaultStrVal;
         fan.email_valid = ev.validate(fan.email);
-        fan.email_provider = fan.email_valid ? fan.email.split('@').pop().split('.').shift() : defaultStrVal;
+        fan.email_provider = fan.email_valid ? fan.email.toLowerCase().split('@').pop().split('.').shift() : defaultStrVal;
         fan.gender = _.has(user, 'gender') ? user.gender : defaultStrVal;
 
         // birthday-related stuff
@@ -195,6 +208,15 @@ try {
             if (_.has(user, 'cty') && !_.isEmpty(user.cty) && (user.cty !== 'Unknown')) {
                 cty.push(user.cty);
             }
+            if (_.has(user, 'cty') && !_.isEmpty(user.cty) && (user.cty !== 'Unknown')) {
+                cty.push(user.cty);
+            }
+            if (_.has(user, 'tsd') && _.has(user, 'sc') && (user.sc > 20)) {
+                asd.push(fan.average_session_duration);
+            }
+            if (fan.push_enabled) {
+                regPushCnt++;
+            }
             /*
             if (fan.has_registered) {
                 both.push(user.custom.id);
@@ -216,16 +238,38 @@ try {
     var regByPlat = _.countBy(plat);
     var visByCc =  _.omit(_.countBy(_.map(fans, 'country_code')), [defaultStrVal, 'Unknown']);
     var regByCc =  _.countBy(cc);
-    var visByCty =  _.omit(_.countBy(_.map(fans, 'cty')), [defaultStrVal, 'Unknown']);
+    var visByCty =  _.omit(_.countBy(_.map(users, 'cty')), [defaultStrVal, 'Unknown']);
     var regByCty =  _.countBy(cty);
+    var visByCty150 = _.clone(visByCty);
+    for (var k in visByCty) {
+        if (visByCty[k] < 150) {
+            visByCty150 = _.omit(visByCty150, k);
+        }
+    }
+    var regByCty150 = _.clone(regByCty);
+    for (var c in regByCty) {
+        if (regByCty[c] < 150) {
+            regByCty150 = _.omit(regByCty150, c);
+        }
+    }
+    var provs =  _.omit(_.countBy(_.map(fans, 'email_provider')), defaultStrVal);
+    var provs15 = _.clone(provs);
+    for (var p in provs) {
+        if (provs[p] < 15) {
+            provs15 = _.omit(provs15, p);
+        }
+    }
+    var gdr = _.omit(_.countBy(_.map(fans, 'gender')), [defaultStrVal, '-']);
+    var ages = _.map(fans, 'age');
+    var visPushEn = _.sum(_.map(fans, 'push_enabled'));
     console.log('Total count of unique fanhero IDs: ', fhidCnt);
     console.log('Total visitor records: ', fans.length);
     console.log(`Registration rate: ${ Math.round(fhidCnt * 10000.0 / fans.length) / 100.0 } %`);
     console.log('Total session count: ', sc);
     console.log('Total sessions from registered users: ', scFromReg);
     console.log('% of sessions from registered users: ', Math.round(scFromReg * 10000.0 / sc) / 100.0);
-    console.log('Average sessions per registered user for more than 5 days: ', scFromReg/fhidCnt);
-    console.log('Average sessions per week: ', _.sum(sess7)/sess7.length);
+    console.log('Average sessions per registered user for more than 5 days: ', scFromReg / fhidCnt);
+    console.log('Average sessions per week: ', _.sum(sess7) / sess7.length);
     console.log('all users by platform', visByPlat);
     console.log('registered users by platform', regByPlat);
     console.log('Android registration rate', regByPlat.Android * 100.0 / visByPlat.Android);
@@ -234,8 +278,26 @@ try {
     //console.log('registered users by country', regByCc);
     console.log('visitor count from brazil', visByCc.BR, ` (${visByCc.BR * 100.0 / fans.length} %)`);
     console.log('registered fans from brazil', regByCc.BR, ` (${regByCc.BR * 100.0 / fhidCnt} %)`);
-    console.log('visitors by city', visByCty);
-    console.log('registered by city', regByCty);
+    console.log('cities with more than 150 visitors: ', orderedJsonStringify(visByCty150));
+    console.log('cities with more than 150 registered users: ', orderedJsonStringify(regByCty150));
+    console.log(`visitors from ${Object.keys(visByCty).length} cities`);
+    console.log(`registered users from ${Object.keys(regByCty).length} cities`);
+    console.log('app version adoption ', orderedJsonStringify(_.omit(_.countBy(_.map(fans, 'app_version')), defaultStrVal)));
+    console.log('median session duration for reg. users with 20+ sessions:', stats.median(asd), 'seconds');
+    console.log('screen widths:', orderedJsonStringify(_.omit(_.countBy(_.map(fans, 'screen_width')), defaultStrVal)));
+    console.log('most common screen width:', stats.mode(_.map(fans, 'screen_width')));
+    console.log('email providers with 15+ fans: ', orderedJsonStringify(provs15));
+    console.log(`male fans: ${gdr.M} (${Math.round(gdr.M * 10000.0 / (gdr.M + gdr.F)) / 100.0}%)`);
+    console.log(`female fans: ${gdr.F} (${Math.round(gdr.F * 10000.0 / (gdr.M + gdr.F)) / 100.0}%)`);
+    console.log(`most common fan age: ${stats.mode(ages)}`);
+    console.log(`median fan age: ${stats.median(ages)}`);
+    console.log(`average fan age: ${stats.mean(ages)}`);
+    console.log('fan distribution by astrological sign:', orderedJsonStringify(_.omit(_.countBy(_.map(fans, 'astrological_sign')), [defaultStrVal, 'undefined'])));
+    console.log('fan distribution by birth month:', orderedJsonStringify(_.omit(_.countBy(_.map(fans, 'birth_month')), [defaultStrVal, 'undefined', defaultIntVal])));
+    console.log('visitor distribution by language:', orderedJsonStringify(_.omit(_.countBy(_.map(fans, 'language')), [defaultStrVal])));
+    console.log(`visitors with push notifications enabled: ${visPushEn} (${Math.round(visPushEn * 10000.0 / fans.length) / 100.0} %)`);
+    console.log(`registered users with push notifications enabled: ${regPushCnt} (${Math.round(regPushCnt * 10000.0 / fhidCnt) / 100.0} %)`);
+    // TODO push notifications statistics by platform (among reg and non-reg users)
 }
 catch (err) {
     console.error('error while decoding parsed file: ', err);
