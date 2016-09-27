@@ -6,14 +6,24 @@ var ev = require('email-validator');
 var json2csv = require('json2csv');
 var stats = require('stats-lite');
 
-const inputFilePath = 'temp/input.json';
-const intermediateFilePath = 'temp/intermediate.json';
-const jsonOutputFilePath = 'temp/output.json';
-const csvOutputFilePath = 'temp/output.csv';
+var _csv2sql = require('csv2sql-lite');
+var csv2sql = _csv2sql({
+    tableName: 'users',
+    dbName: 'dump',
+    dropTable: true,
+    seperator: ',',
+    lineSeperator: '\n'
+});
 
 const defaultIntVal = null; // -1
 const defaultFloatVal = null; // NaN
 const defaultStrVal = null; // 'n/a'
+
+const inputFilePath = 'temp/input.json';
+const intermediateFilePath = 'temp/intermediate.json';
+const jsonOutputFilePath = 'temp/output.json';
+const csvOutputFilePath = 'temp/output.csv';
+const sqlOutputFilePath = 'temp/dump.sql';
 
 function countEvent(user, eventName) {
     if (!_.has(user, 'pe')) {
@@ -60,6 +70,7 @@ catch (err) {
 
 try {
 
+    var fhIds = [];
     var both = [];
     var sess7 = [];
     var plat = [];
@@ -97,7 +108,7 @@ try {
         fan.platform = _.has(user, 'p') ? user.p : (_.has(user, 'src') ? user.src : defaultStrVal);
         fan.platform_version = _.has(user, 'pv') ? user.pv : defaultStrVal;
         fan.total_session_duration = _.has(user, 'tsd') ? Math.round(user.tsd) : defaultIntVal;
-        fan.average_session_duration = _.has(user, 'tsd') && _.has(user, 'sc') && (user.sc > 0) ? Math.round(user.tsd / user.sc) : defaultIntVal;
+        fan.average_session_duration = _.has(user, 'tsd') && _.has(user, 'sc') && (user.sc > 0) && (user.tsd > 60) ? user.tsd / user.sc : defaultIntVal;
         fan.location = _.has(user, 'custom.location') ? user.custom.location : defaultStrVal;
         fan.fanheroid = _.has(user, 'custom.id') ? user.custom.id : defaultStrVal;
         fan._id = _.has(user, '_id') ? user._id : defaultStrVal;
@@ -197,8 +208,9 @@ try {
         // queue completed fan
         fans.push(fan);
 
-        if (_.has(user, 'custom.id') && !_.isEmpty(user.custom.id)) {
+        if (_.has(user, 'custom.id') && !_.isEmpty(user.custom.id) && _.isString(user.custom.id) && (user.custom.id.length > 2)) {
             scFromReg += fan.session_count;
+            fhIds.push(user.custom.id);
             if (_.has(user, 'p')) {
                 plat.push(user.p);
             }
@@ -232,7 +244,10 @@ try {
     console.log('Total of user records with unique fanhero IDs and register event logged', _.uniq(both).length);
     console.log('Total users with register event logged: ', _.sum(_.map(fans, 'has_registered')));
     */
-    var fhidCnt = _.uniq(_.map(fans, 'fanheroid')).length - 1;
+    var fhidCnt = _.uniq(fhIds).length;
+    var uidCnt = _.uniq(_.map(fans, 'uid')).length - 1;
+    var _idCnt = _.uniq(_.map(fans, '_id')).length;
+    var uniqDevices = _.uniq(_.map(fans, 'device_id')).length - 1;
     var sc = _.sum(_.map(fans, 'session_count'));
     var visByPlat = _.omit(_.countBy(_.map(fans, 'platform')), defaultStrVal);
     var regByPlat = _.countBy(plat);
@@ -263,7 +278,11 @@ try {
     var ages = _.map(fans, 'age');
     var visPushEn = _.sum(_.map(fans, 'push_enabled'));
     console.log('Total count of unique fanhero IDs: ', fhidCnt);
+    console.log('Total entries with fanhero IDs: ', fhIds.length);
     console.log('Total visitor records: ', fans.length);
+    console.log('Unique uid entries: ', uidCnt);
+    console.log('Unique _id entries: ', _idCnt);
+    console.log('Unique device IDs: ', uniqDevices);
     console.log(`Registration rate: ${ Math.round(fhidCnt * 10000.0 / fans.length) / 100.0 } %`);
     console.log('Total session count: ', sc);
     console.log('Total sessions from registered users: ', scFromReg);
@@ -320,3 +339,8 @@ catch (err) {
     // Be sure to provide fields if it is possible that your data array will be empty.
     console.error('error while writing csv output file', err);
 }
+
+var rstream = fs.createReadStream(csvOutputFilePath);
+var wstream = fs.createWriteStream(sqlOutputFilePath);
+rstream.pipe(csv2sql).pipe(wstream);
+// mysql -u root -p < dump.sql
