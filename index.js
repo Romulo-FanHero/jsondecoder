@@ -71,6 +71,7 @@ catch (err) {
 try {
 
     var fhIds = [];
+    var knGdr = [];
     var both = [];
     var sess7 = [];
     var plat = [];
@@ -90,7 +91,7 @@ try {
         fan.last_session_timestamp = _.has(user, 'ls') ? user.ls : defaultIntVal;
         fan.seconds_since_first_session = _.has(user, 'fs') ? Math.round(Date.now() / 1000 - user.fs) : defaultIntVal;
         fan.seconds_since_last_session = _.has(user, 'ls') ? Math.round(Date.now() / 1000 - user.ls) : defaultIntVal;
-        fan.days_from_first_to_last_session = _.has(user, 'fs') && _.has(user, 'ls') ? Math.floor((fan.last_session_timestamp - fan.first_session_timestamp) / 86400.0) : defaultIntVal;
+        fan.days_from_first_to_last_session = _.has(user, 'fs') && _.has(user, 'ls') ? Math.floor((fan.last_session_timestamp - fan.first_session_timestamp) / 86400.0) : defaultIntVal; // FIXME date subtraction is more correct
         fan.sessions_per_week = _.has(user, 'sc') && _.has(user, 'fs') && _.has(user, 'ls') && (fan.days_from_first_to_last_session > 5) ? fan.session_count * 7.0 / fan.days_from_first_to_last_session : defaultFloatVal;
         fan.device_id = _.has(user, 'did') ? user.did : defaultStrVal;
         fan.device_name = _.has(user, 'd') ? user.d : defaultStrVal;
@@ -107,7 +108,7 @@ try {
         fan.app_version = _.has(user, 'av') ? user.av : defaultStrVal;
         fan.platform = _.has(user, 'p') ? user.p : (_.has(user, 'src') ? user.src : defaultStrVal);
         fan.platform_version = _.has(user, 'pv') ? user.pv : defaultStrVal;
-        fan.total_session_duration = _.has(user, 'tsd') ? Math.round(user.tsd) : defaultIntVal;
+        fan.total_session_duration = _.has(user, 'tsd') ? Math.round(user.tsd) : 0;
         fan.average_session_duration = _.has(user, 'tsd') && _.has(user, 'sc') && (user.sc > 5) && (user.tsd > 60) ? user.tsd / user.sc : /*defaultIntVal*/ 0.0;
         fan.location = _.has(user, 'custom.location') ? user.custom.location : defaultStrVal;
         fan.fanheroid = _.has(user, 'custom.id') ? user.custom.id : defaultStrVal;
@@ -125,8 +126,10 @@ try {
             res[0] = parseInt(res[0]);
             res[1] = parseInt(res[1]);
             if (_.isFinite(res[0]) && _.isFinite(res[1])) {
-                fan.screen_height = res[1] > res[0] ? res[1] : res[0];
-                fan.screen_width = fan.screen_height === res[1] ? res[0] : res[1];
+                fan.screen_height = Math.max(res[0], res[1]);
+                fan.screen_width = Math.min(res[0], res[1]);
+                //fan.screen_height = res[1] > res[0] ? res[1] : res[0];
+                //fan.screen_width = fan.screen_height === res[1] ? res[0] : res[1];
             }
         }
         if (fan.screen_width !== defaultIntVal) {
@@ -224,37 +227,131 @@ try {
         fan.name = _.has(user, 'name') ? user.name : defaultStrVal;
         fan.username = _.has(user, 'username') ? user.username : defaultStrVal;
 
-        // queue completed fan
-        fans.push(fan);
-
         // registered user handling
         if (_.has(user, 'custom.id') && !_.isEmpty(user.custom.id) && _.isString(user.custom.id) && (user.custom.id.length > 2)) {
-            scFromReg += fan.session_count;
-            fhIds.push(user.custom.id);
-            if (_.has(user, 'p')) {
-                plat.push(user.p);
+
+            if (fhIds.indexOf(user.custom.id) === -1) {
+                fhIds.push(user.custom.id);
+                fans.push(fan);
+
+                // THESE HAVE TO BE RE-ADDED FOR UNIQUE REGISTERED USERS IN A SEPARATE LOOP
+                // ### BEGIN FIXME ### //
+                scFromReg += fan.session_count;
+                if (_.has(user, 'p')) {
+                    plat.push(user.p);
+                }
+                if (_.has(user, 'cc') && !_.isEmpty(user.cc) && (user.cc !== 'Unknown')) {
+                    cc.push(user.cc);
+                }
+                if (_.has(user, 'cty') && !_.isEmpty(user.cty) && (user.cty !== 'Unknown')) {
+                    cty.push(user.cty);
+                }
+                if (_.has(user, 'tsd') && _.has(user, 'sc') && (user.sc > 20)) {
+                    asd.push(fan.average_session_duration);
+                }
+                if (fan.push_enabled) {
+                    regPushCnt++;
+                }
+                if (fan.sessions_per_week !== defaultFloatVal) {
+                    sess7.push(fan.sessions_per_week);
+                }
+                // ### END FIXME ### //
+
             }
-            if (_.has(user, 'cc') && !_.isEmpty(user.cc) && (user.cc !== 'Unknown')) {
-                cc.push(user.cc);
+            else {
+
+                for (var i = 0, len = fans.length; i < len; i++) {
+
+                    if (fans[i].fanheroid === user.custom.id) {
+
+                        var up = {};
+
+                        // sum session counts
+                        up.session_count = fan.session_count + fans[i].session_count;
+
+                        // sum total session durations
+                        up.total_session_duration = fan.total_session_duration + fans[i].total_session_duration;
+
+                        // pick earliest first session timestamp
+                        if (fan.first_session_timestamp !== defaultIntVal) {
+                            if (fans[i].first_session_timestamp !== defaultIntVal) {
+                                up.first_session_timestamp = Math.min(fans[i].first_session_timestamp, fan.first_session_timestamp);
+                            }
+                            else {
+                                up.first_session_timestamp = fan.first_session_timestamp;
+                            }
+                        }
+                        else {
+                            up.first_session_timestamp = fans[i].first_session_timestamp;
+                        }
+
+                        // pick latest last session timestamp
+                        if (fan.last_session_timestamp !== defaultIntVal) {
+                            if (fans[i].last_session_timestamp !== defaultIntVal) {
+                                up.last_session_timestamp = Math.max(fans[i].last_session_timestamp, fan.last_session_timestamp);
+                            }
+                            else {
+                                up.last_session_timestamp = fan.last_session_timestamp;
+                            }
+                        }
+                        else {
+                            up.last_session_timestamp = fans[i].last_session_timestamp;
+                        }
+
+                        // recalc seconds since last session
+                        if (up.last_session_timestamp !== defaultIntVal) {
+                            up.seconds_since_last_session = Math.round(Date.now() / 1000 - fans[i].last_session_timestamp);
+                        }
+                        else {
+                            up.seconds_since_last_session = defaultIntVal;
+                        }
+
+                        // recalc days from first to last session
+                        if ((up.first_session_timestamp !== defaultIntVal) && (up.last_session_timestamp !== defaultIntVal)) {
+                            up.days_from_first_to_last_session = Math.floor((up.last_session_timestamp - up.first_session_timestamp) / 86400.0); // FIXME date subtraction is more correct
+                        }
+                        else {
+                            up.days_from_first_to_last_session = defaultIntVal;
+                        }
+
+                        // recalc sessions per week
+                        if ((up.first_session_timestamp !== defaultIntVal) && (up.last_session_timestamp !== defaultIntVal) && (up.days_from_first_to_last_session !== defaultIntVal) && (up.days_from_first_to_last_session > 1)) {
+                            up.sessions_per_week = up.session_count * 7.0 / up.days_from_first_to_last_session;
+                        }
+                        else {
+                            up.sessions_per_week = defaultIntVal; // or zero
+                        }
+
+                        // recalc average session duration
+                        if ((up.total_session_duration !== defaultIntVal) && (up.session_count > 1)) {
+                            up.average_session_duration = up.total_session_duration / up.session_count;
+                        }
+                        else {
+                            up.average_session_duration = defaultIntVal; // or zero
+                        }
+
+                        fans[i] = fan;
+                        fans[i].session_count = up.session_count;
+                        fans[i].total_session_duration = up.total_session_duration;
+                        fans[i].first_session_timestamp = up.first_session_timestamp;
+                        fans[i].last_session_timestamp = up.last_session_timestamp;
+                        fans[i].seconds_since_last_session = up.seconds_since_last_session;
+                        fans[i].days_from_first_to_last_session = up.days_from_first_to_last_session;
+                        fans[i].sessions_per_week = up.sessions_per_week;
+                        fans[i].average_session_duration = up.average_session_duration;
+
+                        break;
+                    }
+                }
             }
-            if (_.has(user, 'cty') && !_.isEmpty(user.cty) && (user.cty !== 'Unknown')) {
-                cty.push(user.cty);
-            }
-            if (_.has(user, 'cty') && !_.isEmpty(user.cty) && (user.cty !== 'Unknown')) {
-                cty.push(user.cty);
-            }
-            if (_.has(user, 'tsd') && _.has(user, 'sc') && (user.sc > 20)) {
-                asd.push(fan.average_session_duration);
-            }
-            if (fan.push_enabled) {
-                regPushCnt++;
-            }
+
         }
-        if (fan.sessions_per_week !== defaultFloatVal) {
-            sess7.push(fan.sessions_per_week);
+        else {
+            fans.push(fan);
         }
 
     });
+
     /*
     console.log('Total of user records with unique fanhero IDs and register event logged', _.uniq(both).length);
     console.log('Total users with register event logged: ', _.sum(_.map(fans, 'has_registered')));
@@ -292,6 +389,7 @@ try {
     var gdr = _.omit(_.countBy(_.map(fans, 'gender')), [defaultStrVal, '-']);
     var ages = _.map(fans, 'age');
     var visPushEn = _.sum(_.map(fans, 'push_enabled'));
+
     console.log('Total count of unique fanhero IDs: ', fhidCnt);
     console.log('Total entries with fanhero IDs: ', fhIds.length);
     console.log('Total visitor records: ', fans.length);
