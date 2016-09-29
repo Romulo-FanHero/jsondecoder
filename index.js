@@ -115,13 +115,34 @@ try {
         fan.uid = _.has(user, 'uid') ? user.uid : defaultStrVal;
         fan.push_enabled = (_.has(user, 'tkip') && user.tkip) || (_.has(user, 'tkap') && user.tkap);
         fan.screen_resolution = _.has(user, 'r') ? user.r : defaultStrVal;
+        fan.screen_height = defaultIntVal;
+        fan.screen_width = defaultIntVal;
         var res = [];
         if (_.has(user, 'r')) {
             res = user.r.match(/\d+/g);
         }
-        fan.screen_width = _.has(user, 'r') && (res.length === 2) ? res[0] : defaultStrVal;
-        fan.screen_height = _.has(user, 'r') && (res.length === 2) ? res[1] : defaultStrVal;
-        fan.device_density = _.has(user, 'dnst') ? user.dnst : defaultStrVal;
+        if (res.length === 2) {
+            res[0] = parseInt(res[0]);
+            res[1] = parseInt(res[1]);
+            if (_.isFinite(res[0]) && _.isFinite(res[1])) {
+                fan.screen_height = res[1] > res[0] ? res[1] : res[0];
+                fan.screen_width = fan.screen_height === res[1] ? res[0] : res[1];
+            }
+        }
+        if (fan.screen_width !== defaultIntVal) {
+            var w = fan.screen_width;
+            fan.screen_cat = w < 500 ? 'LOW RES' : fan.screen_cat;
+            fan.screen_cat = (w >= 500) && (w < 680) ? 'SUB HD' : fan.screen_cat;
+            fan.screen_cat = (w >= 680) && (w < 900) ? 'HD' : fan.screen_cat;
+            fan.screen_cat = (w >= 900) && (w < 1260) ? 'FULL HD' : fan.screen_cat;
+            fan.screen_cat = (w >= 1260) && (w < 1700) ? '2K' : fan.screen_cat;
+            fan.screen_cat = (w >= 1700) && (w < 2200) ? '4K' : fan.screen_cat;
+            fan.screen_cat = w >= 2200 ? '>4K' : fan.screen_cat;
+        }
+        else {
+            fan.screen_cat = defaultStrVal;
+        }
+        fan.screen_density = _.has(user, 'dnst') ? user.dnst : defaultStrVal;
         fan.language = _.has(user, 'la') ? user.la : defaultStrVal;
         fan.has_info = _.has(user, 'hasInfo') && user.hasInfo && _.has(user, 'picture') && _.has(user, 'custom.id')  && _.has(user, 'email'); // && isValidUrl(user.picture) FIXME hasInfo might mean more than this
         fan.avatar_url = _.has(user, 'picture') ? user.picture : defaultStrVal; // "https://api.fanhero.net/user/${fan.fanheroid}/avatar/thumb-100"
@@ -161,7 +182,6 @@ try {
         fan.astrological_zodiac = horoscope.getZodiac(fan.birth_year, true);
 
         /*
-
         // Event counters
         fan.msg_count = _.has(user, 'msgs') ? user.msgs.length : 0;
         fan.event_count = _.has(user, 'pe') ? user.pe.length : 0;
@@ -198,16 +218,16 @@ try {
         fan.has_pushed = fan.push_opened_count > 0;
         fan.has_registered = fan.register_count > 0;
         fan.has_signed_out = fan.sign_out_count > 0;
-
         */
 
-        // ### DANGER ###
+        // ### ANONIMITY DANGER ###
         fan.name = _.has(user, 'name') ? user.name : defaultStrVal;
         fan.username = _.has(user, 'username') ? user.username : defaultStrVal;
 
         // queue completed fan
         fans.push(fan);
 
+        // registered user handling
         if (_.has(user, 'custom.id') && !_.isEmpty(user.custom.id) && _.isString(user.custom.id) && (user.custom.id.length > 2)) {
             scFromReg += fan.session_count;
             fhIds.push(user.custom.id);
@@ -229,11 +249,6 @@ try {
             if (fan.push_enabled) {
                 regPushCnt++;
             }
-            /*
-            if (fan.has_registered) {
-                both.push(user.custom.id);
-            }
-            */
         }
         if (fan.sessions_per_week !== defaultFloatVal) {
             sess7.push(fan.sessions_per_week);
@@ -342,5 +357,4 @@ catch (err) {
 
 var rstream = fs.createReadStream(csvOutputFilePath);
 var wstream = fs.createWriteStream(sqlOutputFilePath);
-rstream.pipe(csv2sql).pipe(wstream);
-// mysql -u root -p < dump.sql
+rstream.pipe(csv2sql).pipe(wstream); // mysql -u root -p < dump.sql
