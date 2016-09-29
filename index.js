@@ -108,7 +108,7 @@ try {
         fan.platform = _.has(user, 'p') ? user.p : (_.has(user, 'src') ? user.src : defaultStrVal);
         fan.platform_version = _.has(user, 'pv') ? user.pv : defaultStrVal;
         fan.total_session_duration = _.has(user, 'tsd') ? Math.round(user.tsd) : defaultIntVal;
-        fan.average_session_duration = _.has(user, 'tsd') && _.has(user, 'sc') && (user.sc > 0) && (user.tsd > 60) ? user.tsd / user.sc : defaultIntVal;
+        fan.average_session_duration = _.has(user, 'tsd') && _.has(user, 'sc') && (user.sc > 5) && (user.tsd > 60) ? user.tsd / user.sc : /*defaultIntVal*/ 0.0;
         fan.location = _.has(user, 'custom.location') ? user.custom.location : defaultStrVal;
         fan.fanheroid = _.has(user, 'custom.id') ? user.custom.id : defaultStrVal;
         fan._id = _.has(user, '_id') ? user._id : defaultStrVal;
