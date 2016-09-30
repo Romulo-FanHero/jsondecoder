@@ -71,6 +71,18 @@ catch (err) {
 
 try {
 
+    // get latest timestamp available as a static time reference
+    var last = 0;
+    _.map(users, 'ls').forEach(function(ts) {
+        if (_.isFinite(ts)) {
+            if (ts > last) {
+                last = ts;
+            }
+        }
+    });
+    last = Math.round(last / 1000.0);
+    console.log('LAST KISS', last);
+
     var fhIds = [];
     var knGdr = [];
     var both = [];
@@ -88,13 +100,14 @@ try {
     users.forEach(function(user) {
 
         var fan = {};
-        fan.session_count = _.has(user, 'sc') ? user.sc : 0;
-        fan.first_session_timestamp = _.has(user, 'fs') ? user.fs : defaultIntVal;
-        fan.last_session_timestamp = _.has(user, 'ls') ? user.ls : defaultIntVal;
-        fan.seconds_since_first_session = _.has(user, 'fs') ? Math.round(Date.now() / 1000 - user.fs) : defaultIntVal;
-        fan.seconds_since_last_session = _.has(user, 'ls') ? Math.round(Date.now() / 1000 - user.ls) : defaultIntVal;
-        fan.days_from_first_to_last_session = _.has(user, 'fs') && _.has(user, 'ls') ? Math.floor((fan.last_session_timestamp - fan.first_session_timestamp) / 86400.0) : defaultIntVal; // FIXME date subtraction is more correct
-        fan.sessions_per_week = _.has(user, 'sc') && _.has(user, 'fs') && _.has(user, 'ls') && (fan.days_from_first_to_last_session > 5) ? fan.session_count * 7.0 / fan.days_from_first_to_last_session : defaultFloatVal;
+        fan.session_count = _.has(user, 'sc') && _.isFinite(user.sc) ? user.sc : 0;
+        fan.first_session_timestamp = _.has(user, 'fs') && _.isFinite(user.fs) ? user.fs : defaultIntVal;
+        fan.last_session_timestamp = _.has(user, 'ls') && _.isFinite(user.ls) ? user.ls : defaultIntVal;
+        fan.seconds_since_first_session = (fan.first_session_timestamp !== defaultIntVal) ? Math.round(last * 1000.0 - user.fs) : defaultIntVal;
+        fan.seconds_since_last_session = (fan.last_session_timestamp !== defaultIntVal) ? Math.round(last * 1000.0 - user.ls) : defaultIntVal;
+        //fan.days_from_first_to_last_session = (fan.first_session_timestamp !== defaultIntVal) && (fan.last_session_timestamp !== defaultIntVal) ? Math.floor((fan.last_session_timestamp - fan.first_session_timestamp) / 86400.0) : defaultIntVal;
+        fan.days_from_first_to_last_session = (fan.first_session_timestamp !== defaultIntVal) && (fan.last_session_timestamp !== defaultIntVal) ? Math.round(Math.abs((+new Date(fan.last_session_timestamp * 1000)) - (+new Date(fan.first_session_timestamp * 1000))) / 8.64e7) : defaultIntVal;
+        fan.sessions_per_week = _.has(user, 'sc') && _.has(user, 'fs') && _.has(user, 'ls') && (fan.days_from_first_to_last_session > 5) ? Math.round(fan.session_count * 6.048e8 / (fan.last_session_timestamp - fan.first_session_timestamp)) / 1.0e3 : defaultFloatVal;
         fan.device_id = _.has(user, 'did') ? user.did : defaultStrVal;
         fan.device_name = _.has(user, 'd') ? user.d : defaultStrVal;
         fan.country_code = _.has(user, 'cc') ? user.cc : defaultStrVal;
@@ -173,7 +186,7 @@ try {
                     if (_.isFinite(date.getTime())) {  // d.valueOf() could also work
                         fan.birthdate = user.custom.birthday;
                         fan.birth_timestamp = Math.round(date.getTime() / 1000);
-                        fan.seconds_since_birth = Math.round(Date.now() / 1000 - fan.birth_timestamp);
+                        fan.seconds_since_birth = Math.round(last - fan.birth_timestamp);
                         fan.birth_year = date.getFullYear();
                         fan.birth_month = date.getMonth() + 1;
                         fan.birth_day = date.getDate();
@@ -293,9 +306,17 @@ try {
                             up.last_session_timestamp = fans[i].last_session_timestamp;
                         }
 
+                        // recalc seconds since first session
+                        if (up.first_session_timestamp !== defaultIntVal) {
+                            up.seconds_since_first_session = Math.round(last * 1000.0 - up.first_session_timestamp);
+                        }
+                        else {
+                            up.seconds_since_first_session = defaultIntVal;
+                        }
+
                         // recalc seconds since last session
                         if (up.last_session_timestamp !== defaultIntVal) {
-                            up.seconds_since_last_session = Math.round(Date.now() / 1000 - fans[i].last_session_timestamp);
+                            up.seconds_since_last_session = Math.round(last * 1000.0 - up.last_session_timestamp);
                         }
                         else {
                             up.seconds_since_last_session = defaultIntVal;
@@ -311,7 +332,7 @@ try {
 
                         // recalc sessions per week
                         if ((up.first_session_timestamp !== defaultIntVal) && (up.last_session_timestamp !== defaultIntVal) && (up.days_from_first_to_last_session !== defaultIntVal) && (up.days_from_first_to_last_session > 1)) {
-                            up.sessions_per_week = up.session_count * 7.0 / up.days_from_first_to_last_session;
+                            up.sessions_per_week = Math.round(fan.session_count * 6.048e8 / (up.last_session_timestamp - up.first_session_timestamp)) / 1.0e3;
                         }
                         else {
                             up.sessions_per_week = defaultIntVal; // or zero
@@ -327,12 +348,7 @@ try {
 
                         // prioritize the remainder fields from the fan with the latest session timestamp
                         if (fan.last_session_timestamp !== defaultIntVal) {
-                            if (fans[i].last_session_timestamp !== defaultIntVal) {
-                                if (fan.last_session_timestamp > fans[i].last_session_timestamp) {
-                                    fans[i] = fan;
-                                }
-                            }
-                            else {
+                            if ((fans[i].last_session_timestamp === defaultIntVal) || (fan.last_session_timestamp > fans[i].last_session_timestamp)) {
                                 fans[i] = fan;
                             }
                         }
@@ -342,6 +358,7 @@ try {
                         fans[i].total_session_duration = up.total_session_duration;
                         fans[i].first_session_timestamp = up.first_session_timestamp;
                         fans[i].last_session_timestamp = up.last_session_timestamp;
+                        fans[i].seconds_since_first_session = up.seconds_since_first_session;
                         fans[i].seconds_since_last_session = up.seconds_since_last_session;
                         fans[i].days_from_first_to_last_session = up.days_from_first_to_last_session;
                         fans[i].sessions_per_week = up.sessions_per_week;
