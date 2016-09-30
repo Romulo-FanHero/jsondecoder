@@ -78,6 +78,7 @@ try {
     var cc = [];
     var cty = [];
     var asd = [];
+    var dupFhids = [];
     var regPushCnt = 0;
     var scFromReg = 0;
 
@@ -111,7 +112,7 @@ try {
         fan.total_session_duration = _.has(user, 'tsd') ? Math.round(user.tsd) : 0;
         fan.average_session_duration = _.has(user, 'tsd') && _.has(user, 'sc') && (user.sc > 5) && (user.tsd > 60) ? user.tsd / user.sc : /*defaultIntVal*/ 0.0;
         fan.location = _.has(user, 'custom.location') ? user.custom.location : defaultStrVal;
-        fan.fanheroid = _.has(user, 'custom.id') ? user.custom.id : defaultStrVal;
+        fan.fanheroid = _.has(user, 'custom.id') && _.isString(user.custom.id) && (user.custom.id.length > 2) ? user.custom.id : defaultStrVal;
         fan._id = _.has(user, '_id') ? user._id : defaultStrVal;
         fan.uid = _.has(user, 'uid') ? user.uid : defaultStrVal;
         fan.push_enabled = (_.has(user, 'tkip') && user.tkip) || (_.has(user, 'tkap') && user.tkap);
@@ -148,8 +149,8 @@ try {
         fan.screen_density = _.has(user, 'dnst') ? user.dnst : defaultStrVal;
         fan.language = _.has(user, 'la') ? user.la : defaultStrVal;
         fan.has_info = _.has(user, 'hasInfo') && user.hasInfo && _.has(user, 'picture') && _.has(user, 'custom.id')  && _.has(user, 'email'); // && isValidUrl(user.picture) FIXME hasInfo might mean more than this
-        fan.avatar_url = _.has(user, 'picture') ? user.picture : defaultStrVal; // "https://api.fanhero.net/user/${fan.fanheroid}/avatar/thumb-100"
-        fan.email = _.has(user, 'email') ? user.email : defaultStrVal;
+        // fan.avatar_url = _.has(user, 'picture') ? user.picture : defaultStrVal; // "https://api.fanhero.net/user/${fan.fanheroid}/avatar/thumb-100" ANONIMITY FIXME
+        // fan.email = _.has(user, 'email') ? user.email : defaultStrVal; ANONIMITY FIXME
         fan.email_valid = ev.validate(fan.email);
         fan.email_provider = fan.email_valid ? fan.email.toLowerCase().split('@').pop().split('.').shift() : defaultStrVal;
         fan.gender = _.has(user, 'gender') ? user.gender : defaultStrVal;
@@ -183,6 +184,18 @@ try {
             }
         }
         fan.astrological_zodiac = horoscope.getZodiac(fan.birth_year, true);
+        if (fan.age !== defaultIntVal) {
+            fan.age_range = fan.age < 18 ? '0-17' : fan.age_range;
+            fan.age_range = (fan.age >= 18) && (fan.age < 25) ? '18-24' : fan.age_range;
+            fan.age_range = (fan.age >= 25) && (fan.age < 35) ? '25-34' : fan.age_range;
+            fan.age_range = (fan.age >= 35) && (fan.age < 45) ? '35-44' : fan.age_range;
+            fan.age_range = (fan.age >= 45) && (fan.age < 55) ? '45-54' : fan.age_range;
+            fan.age_range = (fan.age >= 55) && (fan.age < 65) ? '55-64' : fan.age_range;
+            fan.age_range = fan.age >= 65 ? '65+' : fan.age_range;
+        }
+        else {
+            fan.age_range = defaultStrVal;
+        }
 
         /*
         // Event counters
@@ -224,40 +237,19 @@ try {
         */
 
         // ### ANONIMITY DANGER ###
-        fan.name = _.has(user, 'name') ? user.name : defaultStrVal;
-        fan.username = _.has(user, 'username') ? user.username : defaultStrVal;
+        // fan.name = _.has(user, 'name') ? user.name : defaultStrVal; ANONIMITY FIXME
+        // fan.username = _.has(user, 'username') ? user.username : defaultStrVal; ANONIMITY FIXME
 
-        // registered user handling
-        if (_.has(user, 'custom.id') && !_.isEmpty(user.custom.id) && _.isString(user.custom.id) && (user.custom.id.length > 2)) {
+        // check if it's a registered user
+        if (_.has(user, 'custom.id') && _.isString(user.custom.id) && (user.custom.id.length > 2)) {
 
+            // append current fan if its fanheroid is unique
             if (fhIds.indexOf(user.custom.id) === -1) {
                 fhIds.push(user.custom.id);
                 fans.push(fan);
-
-                // THESE HAVE TO BE RE-ADDED FOR UNIQUE REGISTERED USERS IN A SEPARATE LOOP
-                // ### BEGIN FIXME ### //
-                scFromReg += fan.session_count;
-                if (_.has(user, 'p')) {
-                    plat.push(user.p);
-                }
-                if (_.has(user, 'cc') && !_.isEmpty(user.cc) && (user.cc !== 'Unknown')) {
-                    cc.push(user.cc);
-                }
-                if (_.has(user, 'cty') && !_.isEmpty(user.cty) && (user.cty !== 'Unknown')) {
-                    cty.push(user.cty);
-                }
-                if (_.has(user, 'tsd') && _.has(user, 'sc') && (user.sc > 20)) {
-                    asd.push(fan.average_session_duration);
-                }
-                if (fan.push_enabled) {
-                    regPushCnt++;
-                }
-                if (fan.sessions_per_week !== defaultFloatVal) {
-                    sess7.push(fan.sessions_per_week);
-                }
-                // ### END FIXME ### //
-
             }
+
+            // if fanheroid is already on the fan list, update counting-related fields
             else {
 
                 for (var i = 0, len = fans.length; i < len; i++) {
@@ -339,17 +331,44 @@ try {
                         fans[i].days_from_first_to_last_session = up.days_from_first_to_last_session;
                         fans[i].sessions_per_week = up.sessions_per_week;
                         fans[i].average_session_duration = up.average_session_duration;
-
+                        if (dupFhids.indexOf(user.custom.id) === -1) {
+                            dupFhids.push(user.custom.id);
+                        }
                         break;
                     }
                 }
             }
-
         }
         else {
+            // push unregistered fan
             fans.push(fan);
         }
 
+    });
+
+    // capture specific registered users' stats
+    fans.forEach(function(f) {
+        if (f.fanheroid !== defaultStrVal) {
+            scFromReg += f.session_count;
+            if (f.platform !== defaultStrVal) {
+                plat.push(f.platform);
+            }
+            if ((f.country_code !== defaultStrVal) && !_.isEmpty(f.country_code) && (f.country_code !== 'Unknown')) {
+                cc.push(f.country_code);
+            }
+            if ((f.city_name !== defaultStrVal) && !_.isEmpty(f.city_name) && (f.city_name !== 'Unknown')) {
+                cty.push(f.city_name);
+            }
+            if ((f.total_session_duration > 60) && (f.session_count > 5)) {
+                asd.push(f.average_session_duration);
+            }
+            if (f.push_enabled) {
+                regPushCnt++;
+            }
+            if (f.sessions_per_week !== defaultFloatVal) {
+                sess7.push(f.sessions_per_week);
+            }
+        }
     });
 
     /*
@@ -392,6 +411,7 @@ try {
 
     console.log('Total count of unique fanhero IDs: ', fhidCnt);
     console.log('Total entries with fanhero IDs: ', fhIds.length);
+    console.log('Registered users with more than one device: ', dupFhids.length);
     console.log('Total visitor records: ', fans.length);
     console.log('Unique uid entries: ', uidCnt);
     console.log('Unique _id entries: ', _idCnt);
