@@ -24,6 +24,7 @@ const intermediateFilePath = 'temp/intermediate.json';
 const jsonOutputFilePath = 'temp/output.json';
 const csvOutputFilePath = 'temp/output.csv';
 const sqlOutputFilePath = 'temp/dump.sql';
+const ANONYMOUS_MODE = true;
 
 function countEvent(user, eventName) {
     if (!_.has(user, 'pe')) {
@@ -149,8 +150,10 @@ try {
         fan.screen_density = _.has(user, 'dnst') ? user.dnst : defaultStrVal;
         fan.language = _.has(user, 'la') ? user.la : defaultStrVal;
         fan.has_info = _.has(user, 'hasInfo') && user.hasInfo && _.has(user, 'picture') && _.has(user, 'custom.id')  && _.has(user, 'email'); // && isValidUrl(user.picture) FIXME hasInfo might mean more than this
-        // fan.avatar_url = _.has(user, 'picture') ? user.picture : defaultStrVal; // "https://api.fanhero.net/user/${fan.fanheroid}/avatar/thumb-100" ANONIMITY FIXME
-        // fan.email = _.has(user, 'email') ? user.email : defaultStrVal; ANONIMITY FIXME
+        fan.name = _.has(user, 'name') ? user.name : defaultStrVal;
+        fan.username = _.has(user, 'username') ? user.username : defaultStrVal;
+        fan.avatar_url = _.has(user, 'picture') ? user.picture : defaultStrVal; // "https://api.fanhero.net/user/${fan.fanheroid}/avatar/thumb-100"
+        fan.email = _.has(user, 'email') ? user.email : defaultStrVal;
         fan.email_valid = ev.validate(fan.email);
         fan.email_provider = fan.email_valid ? fan.email.toLowerCase().split('@').pop().split('.').shift() : defaultStrVal;
         fan.gender = _.has(user, 'gender') ? user.gender : defaultStrVal;
@@ -236,9 +239,9 @@ try {
         fan.has_signed_out = fan.sign_out_count > 0;
         */
 
-        // ### ANONIMITY DANGER ###
-        // fan.name = _.has(user, 'name') ? user.name : defaultStrVal; ANONIMITY FIXME
-        // fan.username = _.has(user, 'username') ? user.username : defaultStrVal; ANONIMITY FIXME
+        if (ANONYMOUS_MODE) {
+            fan = _.omit(fan, ['name', 'username', 'avatar_url', 'email']);
+        }
 
         // check if it's a registered user
         if (_.has(user, 'custom.id') && _.isString(user.custom.id) && (user.custom.id.length > 2)) {
