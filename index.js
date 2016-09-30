@@ -322,7 +322,19 @@ try {
                             up.average_session_duration = defaultIntVal; // or zero
                         }
 
-                        fans[i] = fan;
+                        // prioritize the remainder fields from the fan with the latest session timestamp
+                        if (fan.last_session_timestamp !== defaultIntVal) {
+                            if (fans[i].last_session_timestamp !== defaultIntVal) {
+                                if (fan.last_session_timestamp > fans[i].last_session_timestamp) {
+                                    fans[i] = fan;
+                                }
+                            }
+                            else {
+                                fans[i] = fan;
+                            }
+                        }
+
+                        // update incremental fields
                         fans[i].session_count = up.session_count;
                         fans[i].total_session_duration = up.total_session_duration;
                         fans[i].first_session_timestamp = up.first_session_timestamp;
