@@ -6,9 +6,8 @@ var sleep = require('system-sleep');
 var fs = require('fs'),
     readline = require('readline');
 
-var buff = '';
 var users = [];
-
+var buff = '';
 readline.createInterface({
     input: fs.createReadStream('temp/full.json'),
     output: process.stdout,

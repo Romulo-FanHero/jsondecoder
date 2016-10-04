@@ -23,7 +23,7 @@ const inputFilePath = 'temp/input.json';
 const intermediateFilePath = 'temp/intermediate.json';
 const jsonOutputFilePath = 'temp/output.json';
 const csvOutputFilePath = 'temp/output.csv';
-const sqlOutputFilePath = 'temp/dump.sql';
+const sqlOutputFilePath = 'temp/output.sql';
 const ANONYMOUS_MODE = true;
 
 function countEvent(user, eventName) {
