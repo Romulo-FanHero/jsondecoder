@@ -50,8 +50,11 @@ catch (e) {
         fs.writeFileSync(intermediateFilePath,
             fs.readFileSync(inputFilePath, 'utf8')
             .split(`/* 1 */`).join(``)
+            .split(`ISODate("`).join(`"`)
+            .split(`Date(`).join(` `)
             .split(`ObjectId("`).join(`"`)
             .split(`")`).join(`"`)
+            .split(`)`).join(` `) // << very naïve
         );
     }
     catch (err) {
