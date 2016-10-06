@@ -500,7 +500,7 @@ catch (err) {
 }
 
 try {
-    fs.writeFileSync(csvOutputFilePath, json2csv({ data: fans}));
+    fs.writeFileSync(csvOutputFilePath, json2csv({ data: fans }));
 }
 catch (err) {
     // Errors are thrown for bad options, or if the data is empty and no fields are provided.
