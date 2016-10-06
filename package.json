@@ -14,6 +14,7 @@
     "horoscope": "^2.0.1",
     "json2csv": "^3.6.3",
     "lodash": "^4.15.0",
+    "mongodb": "^2.2.10",
     "request": "^2.74.0",
     "stats-lite": "^2.0.3",
     "system-sleep": "^1.0.0-f",
