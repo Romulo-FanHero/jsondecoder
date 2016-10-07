@@ -155,7 +155,10 @@ mongo.connect(`mongodb://${params.host.name}:${params.host.port}/countly`).then(
             csvwriter.end();
             db.close();
         });
-    }).catch(function() {
+    }).catch(function(err) {
+        console.log(err);
         db.close();
     });
+}).catch(function(err) {
+    console.log(err);
 });
