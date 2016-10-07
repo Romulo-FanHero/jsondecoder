@@ -24,7 +24,7 @@ var file = fs.createWriteStream(jsonOutputFilePath);
 jsonwriter.pipe(file);
 
 function toFan(user) {
-    var fan = {}, last = Date.now() / 1000;
+    var fan = {}, last = Math.round(Date.now() / 1000000.0);
     fan.session_count = _.has(user, 'sc') && _.isFinite(user.sc) ? user.sc : 0;
     fan.first_session_timestamp = _.has(user, 'fs') && _.isFinite(user.fs) ? user.fs : defaultIntVal;
     fan.last_session_timestamp = _.has(user, 'ls') && _.isFinite(user.ls) ? user.ls : defaultIntVal;
