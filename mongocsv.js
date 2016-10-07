@@ -46,7 +46,7 @@ function getFans(params) {
         return db.collection(`app_users${params.appId}`).find().count().then(function(cnt) {
             var q = [], fans = [];
 
-            last = 1475467; // FIXME
+            last = Math.round(Date.now() / 1000000.0); // FIXME with proper query
 
             var fhIds = [];
 

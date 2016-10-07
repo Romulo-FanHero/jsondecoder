@@ -30,18 +30,12 @@ function evenly(inc, max) {
 
 mongo.connect(`mongodb://${params.host.name}:${params.host.port}/countly`).then(function(db) {
     db.collection(`app_users${params.appId}`).find().count().then(function(cnt) {
-        var q = [], last = Date.now() / 1000, counter = 0, prev = 0;
+        var q = [], last = Math.round(Date.now() / 1000000.0);
         var csvwriter = csvWriter();
         csvwriter.pipe(fs.createWriteStream(csvOutputFilePath));
         evenly(params.chunkSize, cnt).forEach(function(offset) {
             q.push(db.collection('app_users565c819f3169dd7f607b39c6').find().skip(offset).limit(params.chunkSize).toArray().then(function(res) {
                 res.forEach(function proc(user) {
-                    counter++;
-                    rnd = Math.round(counter * 1000.0 / cnt) / 10.0;
-                    if (rnd !== prev) {
-                        console.log(rnd);
-                        prev = rnd;
-                    }
                     var fan = {};
                     fan.session_count = _.has(user, 'sc') && _.isFinite(user.sc) ? user.sc : 0;
                     fan.first_session_timestamp = _.has(user, 'fs') && _.isFinite(user.fs) ? user.fs : defaultIntVal;
@@ -119,6 +113,7 @@ mongo.connect(`mongodb://${params.host.name}:${params.host.port}/countly`).then(
                     fan.birth_month = defaultIntVal;
                     fan.birth_year = _.has(user, 'byear') ? user.byear : defaultIntVal;
                     fan.age = _.has(user, 'byear') ? (new Date().getFullYear() - user.byear) : defaultIntVal;
+                    fan.astrological_sign = defaultStrVal;
                     if (_.has(user, 'custom.birthday')) {
                         try {
                             var date = new Date(user.custom.birthday);
