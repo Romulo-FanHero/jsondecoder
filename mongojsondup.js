@@ -31,10 +31,16 @@ fs.writeFileSync(jsonOutputFilePath, '[');
 
 mongo.connect(`mongodb://${params.host.name}:${params.host.port}/countly`).then(function(db) {
     db.collection(`app_users${params.appId}`).find().count().then(function(cnt) {
-        var q = [], last = 1475467;
+        var q = [], last = Date.now() / 1000, counter = 0, prev = 0;
         evenly(params.chunkSize, cnt).forEach(function(offset) {
             q.push(db.collection('app_users565c819f3169dd7f607b39c6').find().skip(offset).limit(params.chunkSize).toArray().then(function(res) {
                 res.forEach(function proc(user) {
+                    counter++;
+                    rnd = Math.round(counter * 1000.0 / cnt) / 10.0;
+                    if (rnd !== prev) {
+                        console.log(rnd);
+                        prev = rnd;
+                    }
                     var fan = {};
                     fan.session_count = _.has(user, 'sc') && _.isFinite(user.sc) ? user.sc : 0;
                     fan.first_session_timestamp = _.has(user, 'fs') && _.isFinite(user.fs) ? user.fs : defaultIntVal;

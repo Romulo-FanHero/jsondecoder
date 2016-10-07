@@ -345,7 +345,7 @@ function getFans(params) {
 getFans({
     host: { name: 'localhost', port: 27017 },
     appId: '565c819f3169dd7f607b39c6',
-    chunkSize: 7500
+    chunkSize: 500
 }).then(function(fans) {
     if (_.isUndefined(fans) || fans.length < 1) {
         console.log('no fans have been returned by the db');
