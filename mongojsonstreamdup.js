@@ -5,7 +5,8 @@ var mongo = require('mongodb').MongoClient,
     _ = require('lodash'),
     horoscope = require('horoscope'),
     toAge = require ('to-age'),
-    ev = require('email-validator');
+    ev = require('email-validator'),
+    JSONStream = require('JSONStream');
 
 const defaultIntVal = null;
 const defaultFloatVal = null;
@@ -30,8 +31,9 @@ function evenly(inc, max) {
 mongo.connect(`mongodb://${params.host.name}:${params.host.port}/countly`).then(function(db) {
     db.collection(`app_users${params.appId}`).find().count().then(function(cnt) {
         var q = [], last = Date.now() / 1000, counter = 0, prev = 0;
-        var wstream = fs.createWriteStream(jsonOutputFilePath);
-        wstream.write('[');
+        var jsonwriter = JSONStream.stringify('[', ', ', ']');
+        var file = fs.createWriteStream(jsonOutputFilePath);
+        jsonwriter.pipe(file);
         evenly(params.chunkSize, cnt).forEach(function(offset) {
             q.push(db.collection('app_users565c819f3169dd7f607b39c6').find().skip(offset).limit(params.chunkSize).toArray().then(function(res) {
                 res.forEach(function proc(user) {
@@ -149,15 +151,14 @@ mongo.connect(`mongodb://${params.host.name}:${params.host.port}/countly`).then(
                     else {
                         fan.age_range = defaultStrVal;
                     }
-                    wstream.write(JSON.stringify(fan, null, 2) + ',\n');
+                    jsonwriter.write(fan);
                 });
             }).catch(function(err) {
                 console.log(err);
             }));
         });
         Promise.all(q).then(function() {
-            wstream.write(']');
-            wstream.end();
+            jsonwriter.end();
             db.close();
         });
     }).catch(function() {
