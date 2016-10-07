@@ -152,7 +152,8 @@ mongo.connect(`mongodb://${params.host.name}:${params.host.port}/countly`).then(
             }));
         });
         Promise.all(q).then(function() {
-            csvwriter.end();
+            csvwriter.end(function() { console.log('csv file has been written'); });
+            console.log('execution finished');
             db.close();
         });
     }).catch(function(err) {
