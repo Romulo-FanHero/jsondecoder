@@ -36,7 +36,7 @@
     "requireSpaceAfterBinaryOperators": true,
     "requireCamelCaseOrUpperCaseIdentifiers": {"ignoreProperties": true},
     "requireLineFeedAtFileEnd": true,
-    "requireCapitalizedConstructors": true,
+    "requireCapitalizedConstructors": false,
     "requireDotNotation": true,
     "requireCurlyBraces": [
         "do"

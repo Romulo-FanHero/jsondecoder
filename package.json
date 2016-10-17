@@ -11,6 +11,7 @@
     "JSONStream": "^1.2.1",
     "bluebird": "^3.4.6",
     "chai": "^3.5.0",
+    "collections": "^5.0.5",
     "csv-write-stream": "^2.0.0",
     "csv2sql-lite": "0.0.6",
     "email-validator": "^1.0.5",
