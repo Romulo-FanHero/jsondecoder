@@ -6,7 +6,7 @@ var mongo = require('mongodb').MongoClient,
     loki = require('lokijs')/*,
     fs = require('fs')*/;
 
-const defaultIntVal = null;
+const defaultIntVal = -1;
 const defaultFloatVal = null;
 const defaultStrVal = null;
 
@@ -124,8 +124,18 @@ mongo.connect(`mongodb://${params.host.name}:${params.host.port}/countly`).then(
                     { isRegistered: { $eq: true } },
                     { birth_year: { $gte: 2000,  $ne: defaultIntVal } }
                 ]
-            }).data().length);
-            //lk.saveDatabase();
+            }).count());
+            var view = fans.addDynamicView('filtered');
+            view.applyFind({ isRegistered: { $eq: true } });
+            view.applyFind({ birth_year: { $gte: 1990,  $ne: -1 } });
+            //view.applySimpleSort('session_count');
+            //var top10 = view.branchResultset().limit(10).data();
+            var num = view.branchResultset().mapReduce(function(obj) {
+                return obj.session_count;
+            }, function(array) {
+                return (array[0] + array[array.length - 1]) / 2.0;
+            });
+            console.log(JSON.stringify(num, null, 2));
             lk.close();
             db.close();
         }).catch(function(err) {
